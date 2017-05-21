@@ -12,8 +12,8 @@ namespace pl { namespace os {
 
 
 Epoll::Epoll(int flags, bool isETMode ) 
-    :_flags(flags)
-    ,_isETMode(isETMode)
+    : _isETMode(isETMode)
+    , _flags(flags)
 {
 
   _epfd = epoll_create1(_flags);
@@ -30,45 +30,45 @@ Epoll::~Epoll() {
 //int Epoll::addfd(int fd) {
 //}
 
-int Epoll::addSocket(pl::net::ListenSocket &listenSock) {
-  pl::net::ListenSocket *socket = new pl::net::ListenSocket(std::move(listenSock));
-  printf("move new socket\n");
-  socket->debugInfo();
-  printf("old socket\n");
-  listenSock.debugInfo();
-
-  //TODO development {
-  assert(_listenSockts.count(socket->getFd()) == 0 && "重复加入");
-  //}
-  
-  epoll_event epEv;
-
-  epEv.events = EPOLLIN | (_isETMode ? EPOLLET : 0);
-  epEv.data.ptr = socket;
-
-  if (-1 == epoll_ctl(_epfd, EPOLL_CTL_ADD, socket->getFd(), &epEv)) {
-    postEvent(EPOLL_CTL_ADD_ERROR);
-    return -1;
-  }
-
-  _listenSockts.insert({socket->getFd(), {epEv, socket}});
-  postEvent(ADD_LISTEN_SOCKET);
-
-
-  return 0;
-}
 
 
 
 void Epoll::postEvent(const Event &) {
+  //TODO
 
 }
 
-void close() {
+void Epoll::close() {
   //TODO
 }
 
 
+void Epoll::wait_loop(int size) {
+  _eventBuf = (struct epoll_event*)realloc(_eventBuf, size * sizeof(struct epoll_event));
+  assert(_eventBuf);
+  _eventsBufSize = size;
+  //TODO 动态负载
+
+  _isLoop = true;
+  int nfds;
+  while (_isLoop) {
+    nfds= epoll_wait(_epfd, _eventBuf, _eventsBufSize, _ticks);
+    if (nfds == -1 ) { //TODO likely
+      if (errno == EINTR)
+        continue;
+
+      stopLoop();
+      //TODO post Error
+      return ;
+    }
+
+    for (int i=0; i < nfds; ++i) {
+      HandlEpollable *ev = (HandlEpollable*)_eventBuf[i].data.ptr;
+      //TODO retrun
+      ev->handleEpollEv(&_eventBuf[i]);
+    }
+  }
+}
 
 
 

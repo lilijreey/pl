@@ -8,6 +8,9 @@
  */
 
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
 #include <string>
 #include <functional>
 
@@ -17,7 +20,7 @@ namespace pl { namespace net {
 
 //TODO IPv4, IPv6
 //TODO rename TcpListenSocket
-class ListenSocket {
+class ListenSocket : {
  public:
   /// 触发事件类型
   struct Event {
@@ -37,6 +40,10 @@ class ListenSocket {
       LISTEN_OK,
       CLOSE_ERROR,
       LISTEN_CLOSED, // after close(_socketfd)
+
+
+      NEW_CONNECTION, //aceept ok
+      ACCEPT_ERROR, //aceept() error
     };
 
   };
@@ -64,8 +71,6 @@ class ListenSocket {
   //所有权的迁移
   ListenSocket(ListenSocket &&other);
 
-
-
   ~ListenSocket();
 
   ListenSocket(const ListenSocket&) = delete;
@@ -79,11 +84,14 @@ class ListenSocket {
     return listen(5, eventHandler);
   }
 
+  //TODO maxConnections 最大连接数
+
   //TODO 支持传入一个对象数据驱动形式
   //listen(EventHandler)
   
   //TODO reference
   int listen(int backlog, EventHandler eventHandler);
+
 
   void setEventHanndl();
 
@@ -92,6 +100,7 @@ class ListenSocket {
   //void unattchEpoll();
   
   bool isListening() const {return _fd != -1;}
+  bool isMoved() const {return _port == -1; }
   short getListenPort() const {return _port;}
   int getFd() const { return _fd;}
 
@@ -102,10 +111,27 @@ class ListenSocket {
   //setListenSocketOpt
 
 
+
   void debugInfo() const; 
 
   void close();
+
   
+  //same as accept(2)
+  void accept();
+
+  //设置监听socket为非阻塞模式
+  ListenSocket& setnonblock();
+
+  //设置accept返回的socket为非阻塞模式
+  ListenSocket& setclientnonblock();
+  //void isnonblock() const 
+  
+  int getNewConnectFd() const {return _newConnectFd;}
+  struct sockaddr_in getNewConnectAddr() const {return _newConnectAddr; }
+  socklen_t getNewConnectAddrLen() const {return _newConnectAddrLen;}
+
+  uint32_t getHisConnects() const {return _hisConnects;}
 
  private:
   EventHandleRet postEvent(int code);
@@ -114,15 +140,24 @@ class ListenSocket {
  private:
   enum ServerState { };
 
+  bool _isClientNonblock = false;
   short _port{};
   int _listenBacklog = 5;
   int _fd = -1;
   std::string _ip;
 
+  int _newConnectFd = -1;
+  struct sockaddr_in _newConnectAddr;
+  socklen_t _newConnectAddrLen;
+
   EventHandler _eventHandle;
 
 
  private:
+  //TODO 历史链接数量
+  uint32_t _hisConnects= 0;
+  //TODO 当前的链接数量
+  //错误数量
   //TODO serverInfo
 
 

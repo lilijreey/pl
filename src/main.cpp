@@ -27,6 +27,12 @@ int main() {
 
     case ListenSocket::Event::LISTEN_OK:
        printf("server listen %d listening...\n", ev._socket->getListenPort());
+       //ok
+       //while (ev._socket->isListening()) {
+       //  ev._socket->accept();
+       //  if (ev._socket->getHisConnects() > 3)
+       //    break;
+       //}
        break;
 
     case ListenSocket::Event::CLOSE_ERROR:
@@ -38,6 +44,15 @@ int main() {
        break;
 
 
+    case ListenSocket::Event::NEW_CONNECTION:
+       printf("new connect established fd=%d\n", ev._socket->getNewConnectFd());
+       break;
+
+
+    case ListenSocket::Event::ACCEPT_ERROR:
+       perror("accept() failed");
+       break;
+
     default:
        printf("一个忽略的事件 %d\n", ev._code);
        break;
@@ -48,18 +63,19 @@ int main() {
 
 
 
+
   Epoll epoll;
   epoll.addSocket(l);
-  printf("addSocket\n");
-  //epoll.loop([epoll]() {
+  assert(not l.isListening());
+  assert(l.isMoved());
 
-  //});
+  //printf("addSocket\n");
+  //epoll.removeSocket(l);
+  ////epoll.closeSocket(l);
+
+  //epoll.loop([]()
 
 
-
-  //eng.regEvent()
-
-  //eng.wait()
 
 
 

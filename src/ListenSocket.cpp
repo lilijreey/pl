@@ -5,14 +5,12 @@
  */
 
 #include <unistd.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <arpa/inet.h>
 #include <strings.h>
 #include <cassert>
 
 #include "ListenSocket.hpp"
 #include "Epoll.hpp"
+#include "Util.hpp"
 
 namespace pl { namespace net {
 
@@ -78,6 +76,8 @@ int ListenSocket::listen(int backlog, ListenSocket::EventHandler eventHandleFn) 
 
 
   if (::listen(_fd, _listenBacklog) == -1) {
+    ::close(_fd);
+    _fd = -1;
     postEvent(Event::LISTEN_ERROR);
     return -1;
   }
@@ -114,5 +114,49 @@ again:
   postEvent(Event::LISTEN_CLOSED);
 }
 
+
+void ListenSocket::accept() {
+  //TODO develment
+  if (not isListening()) {
+    assert(false && "没有监听无法aceept");
+    _newConnectFd = -1;
+    postEvent(Event::ACCEPT_ERROR);
+    return ;
+  }
+
+  int flags = 0;
+  if (_isClientNonblock) 
+    flags |= SOCK_NONBLOCK;
+
+again:
+  _newConnectFd = accept4(_fd, 
+                          (struct sockaddr*)&_newConnectAddr, 
+                          &_newConnectAddrLen, 
+                          flags);
+
+  if (_newConnectFd == -1) {
+    if (errno == EAGAIN || errno == EWOULDBLOCK)
+      goto again;
+
+    postEvent(Event::ACCEPT_ERROR);
+    return;
+  }
+
+
+  ++_hisConnects;
+  postEvent(Event::NEW_CONNECTION);
+}
+
+ListenSocket& ListenSocket::setnonblock() {
+  assert(_fd > 0);
+  assert(::pl::os::setnonblock(_fd) != -1);
+  return *this;
+}
+
+
+ListenSocket& ListenSocket::setclientnonblock() {
+  _isClientNonblock = true;
+  return *this;
+}
 
 }} // namespace pl::net 

@@ -1,3 +1,5 @@
+
+#pragma once
 /**
  * @file     Util.hpp
  *           
@@ -7,7 +9,23 @@
  *
  */
 
+#include <unistd.h>
+#include <fcntl.h>
+#include <cassert>
 
-setnonblockIO
+namespace pl { namespace os { 
 
-setblockIO
+inline static 
+int setnonblock(int socket)
+{
+    int flags;
+
+    flags = fcntl(socket, F_GETFL, 0);
+    assert(flags != -1);
+    flags |= O_NONBLOCK;
+    flags |= O_NDELAY;
+    return ::fcntl(socket, F_SETFL, flags);
+}
+
+
+}} // namespace pl::os
