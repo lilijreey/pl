@@ -1193,6 +1193,7 @@ TINT32 CWorkProcess::QueryCache(CWorkSession* pstSession, SItemExt* szItemExt, T
     // 3. 把新数据写入缓存,并解引用如有必要
     if (pstSession->m_udwCommandStep == EN_COMMAND_STEP__3)
     {
+      //???
         dwRetCode = CCacheMgr::Instance()->Query(pstSession->m_udwCacheType, pstSession->m_objReqInfo.m_ddwKey, szItemExt, pudwItemNum, bIncludeDel);
         if (dwRetCode != 0)
         {

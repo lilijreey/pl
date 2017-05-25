@@ -14,8 +14,15 @@ namespace pl::net {
 //继承的此类需要实现 handleEpollEv(const struct epoll_event *) 接口
 //TODO 使用模板做到能够检查是否定义对应函数
 struct Epollable {
-  ///void handleEpollEv(const struct epoll_event *);//
-  ///int getFD()
+  enum {
+    //continue
+    //remove
+    //close
+
+  }
+
+  virtual void handleEpollEv(const struct epoll_event *) = 0;//
+  virtual int getFD() = 0;
 };
 
 struct DebugInfoable {

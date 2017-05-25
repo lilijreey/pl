@@ -111,6 +111,7 @@ class ListenSocket : {
   //setListenSocketOpt
 
 
+  virtual void handleEpollEv(const struct epoll_event *) override;
 
   void debugInfo() const; 
 
@@ -118,7 +119,7 @@ class ListenSocket : {
 
   
   //same as accept(2)
-  void accept();
+  int accept();
 
   //设置监听socket为非阻塞模式
   ListenSocket& setnonblock();

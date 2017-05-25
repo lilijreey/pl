@@ -11,6 +11,7 @@
 #include <chrono>
 
 using namespace std;
+using namespace std::chrono;
 
 //UID
 //TypeId
@@ -24,6 +25,9 @@ using namespace std;
 #define	ITEM_UNREAD  0			/*  */
 #define	ITEM_READ    1			/*  */
 #define	ITEM_DEL     2			/*  */
+
+int testTime =1000000;
+int ThSize = 1;
 
 
 enum {
@@ -291,33 +295,6 @@ struct CacheMgr {
 };
 
 
-//模拟 
-// 1. 内存加载 50WItem,
-// 2. 查询多线程，每个线程都有目标, 也可争夺另一个线程的任务
-//   查询中90% 设置为user, 10%设置为al
-//   read操作占70%, put 占30%
-//   * 测LRU统计淘汰, 
-//   * Item内写满回写
-//   
-// 3. 查看处理速度, 
-// 4. 一不同线程模型测试
-// * 陷入内核速度
-// * 加锁解锁速度性能基准
-//    
-
-//NOTE
-
-//水平扩展， 一致性哈希，虚拟节点
-//一个在线玩家 patition 大小为16070 ~= 16k
-// 加载
-//内存消耗
-// 1W ~= 160M
-// 10W ~= 1.6G
-// 100W ~= 16G
-// 
-//
-// ~= 1k * 
-// 
 CacheMgr * g_cache;
 
 //数据预热
@@ -343,9 +320,8 @@ void worker() {
     
     ItemExt input[MAX_PAGE_NUM * MAX_ITEM_IN_PAGE];
 
-    using namespace std::chrono;
     auto p1 = std::chrono::system_clock::now();
-    for (int i=0; i<100000; ++i) {
+    for (int i=0; i<testTime/ThSize; ++i) {
         uint64_t uid = get_id();
         int type = get_type();
         if (g_cache->isExist(type, uid)) {
@@ -360,14 +336,175 @@ void worker() {
     std::cout << "thread" << std::this_thread::get_id() << "over " 
         << time_span.count() << " sec" << std::endl;
 
+    //printf("input[1]=%d\n", input[3].pos);
+
 }
+
+//模拟 
+// 1. 内存加载 50WItem,
+// 2. 查询多线程，每个线程都有目标, 也可争夺另一个线程的任务
+//   查询中90% 设置为user, 10%设置为al
+//   read操作占70%, put 占30%
+//   * 测LRU统计淘汰, 
+//   * Item内写满回写
+//   
+// 3. 查看处理速度, 
+// 4. 一不同线程模型测试
+// * 陷入内核速度
+// * 加锁解锁速度性能基准
+
+//NOTE
+//画出两种不同的线程模型，以及数据差异的原因
+
+//水平扩展， 一致性哈希，虚拟节点
+//一个在线玩家 patition 大小为16070 ~= 16k
+// 加载
+//内存消耗
+// 1W ~= 160M
+// 10W ~= 1.6G
+// 100W ~= 16G
+// 
+//
+// ~= 1k * 
+// 
+/*
+//由于uid的锁太大，导致多核多线程下同时几乎只有一个线程能够拿到所，其他线程都在
+//　挂起状态，而且全局内存锁的使用，内存屏障会导致cpu,无法使用,而且多核之间
+// 会产生大量cacheMiss, 导致cpu性能无法高效工作
+ 
+同样的100W插入，　
+一个线程 1.44sec O0 O2 0.6esc
+预加载完成 数量为=100000
+thread140165650024192over 1.44327 sec
+Cache user_size=79896, al_size=20104
+回收数量=0, insetNewErr=0
+_getItemCnt=34100, addItems=215900
+
+real    0m2.925s
+user    0m2.568s
+sys     0m0.352s
+
+2线程并行
+O0 9sec, O2 3.5sec
+预加载完成 数量为=100000
+thread139627121067776over 8.87627 sec
+thread139627129460480over 9.05083 sec
+task all time9.05091 sec
+Cache user_size=79896, al_size=20104
+回收数量=0, insetNewErr=0
+_getItemCnt=135982, addItems=864018
+
+real    0m10.544s
+user    0m10.188s
+sys     0m2.516s
+
+task all time3.5842 sec
+Cache user_size=79896, al_size=20104
+回收数量=0, insetNewErr=0
+_getItemCnt=135984, addItems=864016
+
+real    0m4.595s
+user    0m4.608s
+sys     0m1.644s
+
+
+4线程
+O0
+预加载完成 数量为=100000
+^Bkthread140280783554304over 9.21519 sec
+thread140280758376192over 9.35373 sec
+thread140280766768896over 9.40811 sec
+thread140280775161600over 9.45845 sec
+task all time9.4605 sec
+Cache user_size=79896, al_size=20104
+回收数量=0, insetNewErr=0
+_getItemCnt=135984, addItems=864016
+
+real    0m10.950s
+user    0m10.664s
+sys     0m2.584s
+
+O2
+thread140365678819072over 3.62396 sec
+thread140365687211776over 3.76896 sec
+thread140365695604480over 3.83638 sec
+thread140365703997184over 3.91361 sec
+task all time3.91422 sec
+Cache user_size=79896, al_size=20104
+回收数量=0, insetNewErr=0
+_getItemCnt=135983, addItems=864017
+
+real    0m4.949s
+user    0m4.924s
+sys     0m1.928s
+
+8线程并行
+100W 操作共消耗O0 10sec  O2 3.5esc
+预加载完成 数量为=100000
+thread140279081830144over 9.154 sec
+thread140279056652032over 9.25427 sec
+thread140279048259328over 9.3131 sec
+thread140279031473920over 9.33132 sec
+thread140279073437440over 9.35944 sec
+thread140279039866624over 9.48927 sec
+thread140279090222848over 9.54631 sec
+thread140279065044736over 9.57392 sec
+task all time9.57433 sec
+Cache user_size=79896, al_size=20104
+回收数量=0, insetNewErr=0
+_getItemCnt=135983, addItems=864017
+
+real    0m11.131s
+user    0m11.060s
+sys     0m2.516s
+
+
+O2
+thread139984228198144over 3.62536 sec
+thread139984236590848over 3.73356 sec
+thread139984244983552over 3.75196 sec
+thread139984253376256over 3.88145 sec
+task all time3.88153 sec
+Cache user_size=79896, al_size=20104
+回收数量=0, insetNewErr=0
+_getItemCnt=135983, addItems=864017
+
+real    0m4.895s
+user    0m4.896s
+sys     0m1.860s
+
+*/
 
 int main() {
     //init
     //数据预热
     printf("partion:%lu\n", sizeof(Partion));
     initCache();
-    worker();
+
+
+    auto t1 = std::thread(worker);
+    //auto t2 = std::thread(worker);
+    //auto t3 = std::thread(worker);
+    //auto t4 = std::thread(worker);
+    //auto t5 = std::thread(worker);
+    //auto t6 = std::thread(worker);
+    //auto t7 = std::thread(worker);
+    //auto t8 = std::thread(worker);
+
+    auto p1 = std::chrono::system_clock::now();
+
+    t1.join();
+    //t2.join();
+    //t3.join();
+    //t4.join();
+    //t5.join();
+    //t6.join();
+    //t7.join();
+    //t8.join();
+
+    auto p2 = std::chrono::system_clock::now();
+    duration<double> time_span = duration_cast<duration<double>>(p2 - p1);
+    std::cout << "task all time" << time_span.count() << " sec" << std::endl;
 
     g_cache->showInfo();
 
@@ -377,3 +514,5 @@ int main() {
     //sleep(100);
 
 }
+
+

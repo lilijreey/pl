@@ -115,9 +115,7 @@ class Epoll {
   struct epoll_event *_eventBuf=nullptr;
 
   //std::unordered_map<int[> fd <], struct epoll_event> _fds;
-  std::unordered_map<int/* listenfd */, 
-                     std::pair<int/* type */ void /* thing*/>
-                    > _things; 
+  std::unordered_map<int/* listenfd */, > _things; 
 
 };
 

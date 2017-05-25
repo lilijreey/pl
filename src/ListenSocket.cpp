@@ -115,13 +115,13 @@ again:
 }
 
 
-void ListenSocket::accept() {
+int ListenSocket::accept() {
   //TODO develment
   if (not isListening()) {
     assert(false && "没有监听无法aceept");
     _newConnectFd = -1;
     postEvent(Event::ACCEPT_ERROR);
-    return ;
+    return -1;
   }
 
   int flags = 0;
@@ -136,15 +136,19 @@ again:
 
   if (_newConnectFd == -1) {
     if (errno == EAGAIN || errno == EWOULDBLOCK)
+      return 0;
+
+    if (errno == EINTR)
       goto again;
 
     postEvent(Event::ACCEPT_ERROR);
-    return;
+    return -1;
   }
 
 
   ++_hisConnects;
   postEvent(Event::NEW_CONNECTION);
+  return _newConnectFd;
 }
 
 ListenSocket& ListenSocket::setnonblock() {
@@ -157,6 +161,14 @@ ListenSocket& ListenSocket::setnonblock() {
 ListenSocket& ListenSocket::setclientnonblock() {
   _isClientNonblock = true;
   return *this;
+}
+
+void ListenSocket::handleEpollEv(const struct epoll_event * ev) override {
+  //read listen
+  
+  while (accept() != -1) ;
+
+  printf("\n");
 }
 
 }} // namespace pl::net 

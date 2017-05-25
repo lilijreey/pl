@@ -583,17 +583,17 @@ int CCacheMgr::CreateCache(const TUINT32 udwCacheType, const TINT64 ddwUid, cons
 {
     int dwRetCode = 0;
     LockUid(ddwUid);
-    SPartition* poTarget = DoGet(udwCacheType, ddwUid);
-    if (poTarget == NULL)
+    SPartition* poTarget = DoGet(udwCacheType, ddwUid); //非　Unlive 查找
+    if (poTarget == NULL) //没有查找　Unlive
     {
         TUINT32 udwBegin = 0, udwEnd = 0;
 
         SPartition* poUnlive = DoGet(CACHE_TYPE_UNLIVE, ddwUid);
-        if (poUnlive == NULL)
-        {
+        if (poUnlive == NULL) l//还没有
+        { 
             udwBegin = udwItemSeqNum <= MAX_SEQ_NUM ? 0 : (udwItemSeqNum - MAX_SEQ_NUM);
             udwEnd = udwItemSeqNum;
-            poTarget = DoAlloc();
+            poTarget = DoAlloc(); //分配一个
             if (poTarget != NULL)
             {
                 poTarget->m_ddwUid = ddwUid;
@@ -615,7 +615,7 @@ int CCacheMgr::CreateCache(const TUINT32 udwCacheType, const TINT64 ddwUid, cons
 
             TSE_LOG_DEBUG(m_poLog, ("CreateCache:Unlive is NULL,Uid[%ld],type[%u],begin[%u],end[%u]", ddwUid, udwCacheType, udwBegin, udwEnd));
         }
-        else
+        else //unlive 中有,把unlive 切换为live
         {
             DoUnlink(CACHE_TYPE_UNLIVE, poUnlive, ddwUid);
             DoLink(udwCacheType, poUnlive, ddwUid);
@@ -651,7 +651,7 @@ int CCacheMgr::CreateCache(const TUINT32 udwCacheType, const TINT64 ddwUid, cons
             {
                 assert(poTarget->m_udwRear == 0);//由于未满，因此rear端必然处于初始位置，这是下面合并逻辑的根本依据
 
-                if (udwItemSeqNum > 0)
+                if (udwItemSeqNum > 0) //???合并
                 {
                     assert(poTarget->m_ddwBaseSeq >= szItemSeq[0].m_ddwSeq);
                     udwEnd = poTarget->m_ddwBaseSeq - szItemSeq[0].m_ddwSeq;
