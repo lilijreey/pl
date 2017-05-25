@@ -27,7 +27,7 @@ using namespace std::chrono;
 #define	ITEM_DEL     2			/*  */
 
 int testTime =1000000;
-int ThSize = 1;
+int ThSize = 4;
 
 
 enum {
@@ -55,11 +55,11 @@ std::atomic_int g_gen_id;//uid, aid
 #define	gen_aid()  (++g_gen_id)
 
 inline uint64_t get_id() {
-    return rand() % (partion_limit * 5);
+    return random() % (partion_limit * 5);
 }
 
 int get_type() {
-    if (rand() % 10 < 8)
+    if (random() % 10 < 8)
         return USER_REPORT;
 
     return AL_REPORT;
@@ -102,7 +102,7 @@ struct Partion {
     void fullItem() {
         size=0;
 
-        int rate = rand() % 10;
+        int rate = random() % 10;
 
         int pageNum;
         if (rate < 3) {
@@ -305,7 +305,7 @@ void initCache() {
         Partion * p = new Partion();
         p->uid = gen_uid();
         p->fullItem();
-        if (rand() % 10 <= 1)
+        if (random() % 10 <= 1)
             type = AL_REPORT;
         else
             type = USER_REPORT;
@@ -373,7 +373,17 @@ void worker() {
 // 会产生大量cacheMiss, 导致cpu性能无法高效工作
  
 同样的100W插入，　
-一个线程 1.44sec O0 O2 0.6esc
+
+            02 2.5esc
+threadthread::id of a non-executing threadover 2.84634 sec
+task all time2.8464 sec
+Cache user_size=79896, al_size=20104
+回收数量=0, insetNewErr=0
+_getItemCnt=135983, addItems=864017
+
+real    0m3.851s
+user    0m3.496s
+sys     0m0.356s
 预加载完成 数量为=100000
 thread140165650024192over 1.44327 sec
 Cache user_size=79896, al_size=20104
@@ -483,9 +493,9 @@ int main() {
 
 
     auto t1 = std::thread(worker);
-    //auto t2 = std::thread(worker);
-    //auto t3 = std::thread(worker);
-    //auto t4 = std::thread(worker);
+    auto t2 = std::thread(worker);
+    auto t3 = std::thread(worker);
+    auto t4 = std::thread(worker);
     //auto t5 = std::thread(worker);
     //auto t6 = std::thread(worker);
     //auto t7 = std::thread(worker);
@@ -494,9 +504,9 @@ int main() {
     auto p1 = std::chrono::system_clock::now();
 
     t1.join();
-    //t2.join();
-    //t3.join();
-    //t4.join();
+    t2.join();
+    t3.join();
+    t4.join();
     //t5.join();
     //t6.join();
     //t7.join();
